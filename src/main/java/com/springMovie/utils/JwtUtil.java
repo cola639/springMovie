@@ -9,7 +9,7 @@ import java.util.Date;
 
 @Component
 public class JwtUtil {
-    private String secretKey = "mySecretKey";  // 使用更强的密钥
+    private final String secretKey = "mySecretKey";  // 使用更强的密钥
 
     // 生成 JWT Token
     public String generateToken(String username) {
