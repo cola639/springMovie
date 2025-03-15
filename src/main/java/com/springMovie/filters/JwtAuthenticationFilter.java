@@ -11,10 +11,11 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.Collections;
 
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-    private JwtUtil jwtUtil;
+    private final JwtUtil jwtUtil;
 
     public JwtAuthenticationFilter(JwtUtil jwtUtil) {
         this.jwtUtil = jwtUtil;
@@ -22,24 +23,35 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
-
-        // Get JWT token from the Authorization header
+        // 获取 Authorization 头
         String token = request.getHeader("Authorization");
 
-        if (token != null && token.startsWith("Bearer ")) {
-            token = token.substring(7); // Remove "Bearer " prefix
-
-            String username = jwtUtil.extractUsername(token);
-
-            if (username != null && jwtUtil.validateToken(token, username)) {
-                // If valid, create authentication object and set it in the SecurityContext
-                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(username, null, null);
-
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-            }
+        // 如果没有 Token 或者格式不对，则返回 401
+        if (token == null || !token.startsWith("Bearer ")) {
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.getWriter().write("Unauthorized: Token is missing or invalid");
+            return;
         }
 
-        // Continue with the filter chain
+        // 去掉 "Bearer " 前缀
+        token = token.substring(7);
+
+        // 解析 Token
+        String username = jwtUtil.extractUsername(token);
+
+        // 验证 Token 是否有效
+        if (username != null && jwtUtil.validateToken(token, username)) {
+            // 设置认证信息
+            UsernamePasswordAuthenticationToken authentication =
+                    new UsernamePasswordAuthenticationToken(username, null, Collections.emptyList());
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+        } else {
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.getWriter().write("Unauthorized: Invalid token");
+            return;
+        }
+
+        // 继续处理请求
         filterChain.doFilter(request, response);
     }
 }
